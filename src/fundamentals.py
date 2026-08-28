@@ -27,6 +27,7 @@ def fetch_fundamentals(symbol: str) -> dict:
         "forwardPE",
         "priceToBook",
         "returnOnEquity",
+        "returnOnAssets",
         "profitMargins",
         "operatingMargins",
         "revenueGrowth",
@@ -41,6 +42,15 @@ def fetch_fundamentals(symbol: str) -> dict:
         "dividendYield",
         "bookValue",
         "sharesOutstanding",
+        "operatingCashflow",
+        "freeCashflow",
+        "netIncomeToCommon",
+        "totalAssets",
+        "totalDebt",
+        "totalCash",
+        "ebitda",
+        "grossMargins",
+        "totalRevenue",
     ]
     return {k: info.get(k) for k in keys if info.get(k) is not None}
 
