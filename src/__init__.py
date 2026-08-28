@@ -1,1 +1,1 @@
-"""NSE delivery-percentage screener."""
+"""NSE delivery desk with institutional analytics (v2)."""

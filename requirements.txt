@@ -7,3 +7,5 @@ yfinance>=0.2.40
 python-dateutil>=2.9
 pyarrow>=17.0
 requests>=2.32
+scipy>=1.11
+scikit-learn>=1.4

@@ -17,6 +17,7 @@ from src.fundamentals import (
     refresh_pe_ratios,
 )
 from src.indicators import add_indicators, latest_snapshot
+from src.institutional_view import analyze_symbol, market_close_proxy, market_regime, sector_rotation
 from src.insights import classify_snapshot, market_pulse, thesis_for_row, top_ideas
 from src.nse_data import auto_update_if_stale, cache_fingerprint, latest_cached_date, load_history, refresh_history
 from src.promoters import load_cached_promoters
@@ -520,10 +521,11 @@ if jumped_symbol:
     rest = display[display["SYMBOL"] != jumped_symbol]
     display = pd.concat([hit, rest], ignore_index=True)
 
-board_tab, trackers_tab, thesis_tab, guide_tab = st.tabs(
+board_tab, trackers_tab, inst_tab, thesis_tab, guide_tab = st.tabs(
     [
         ":material/table_chart: Opportunity board",
         ":material/account_balance: Trackers",
+        ":material/account_balance_wallet: Institutional",
         ":material/analytics: Stock thesis",
         ":material/menu_book: How to decide",
     ]
@@ -831,6 +833,87 @@ if not selected_symbol:
 if selected_symbol and selected_symbol not in detail_options:
     detail_options = [selected_symbol] + [s for s in detail_options if s != selected_symbol]
 
+with inst_tab:
+    st.caption(
+        "Phase 1 institutional suite on live NSE history for the selected name — momentum, volatility, "
+        "relative strength, and risk. Not a recommendation."
+    )
+    regime = market_regime(history)
+    rot = sector_rotation(snapshot)
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Market regime", regime, border=True)
+    k2.metric("Focus stock", selected_symbol or "—", border=True)
+    top_sec = str(rot.iloc[0]["SECTOR"]) if rot is not None and not rot.empty else "—"
+    k3.metric("Hottest 20D sector", top_sec, border=True)
+    if rot is not None and not rot.empty:
+        st.dataframe(
+            rot,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "CHG_20D": st.column_config.NumberColumn("Median 20D %", format="%.2f"),
+                "HEAT": st.column_config.ProgressColumn("Avg heat", min_value=0, max_value=100, format="%.0f"),
+            },
+        )
+    hist_sym = with_ind[with_ind["SYMBOL"] == selected_symbol].sort_values("TRADE_DATE") if selected_symbol else pd.DataFrame()
+    if hist_sym.empty:
+        st.info("Pick a stock on the board or Jump, then open this tab.")
+    else:
+        with st.spinner("Computing institutional indicators…"):
+            report = analyze_symbol(hist_sym, market_close_proxy(history))
+        if not report.get("ok"):
+            st.warning(report.get("reason", "Could not compute."))
+        else:
+            last = report["last"]
+            sig = report["signals"]
+            stage = report["stage"]
+            tech_t, rs_t, risk_t = st.tabs(["Momentum & vol", "Relative strength", "Risk"])
+            with tech_t:
+                def _m(val, fmt: str) -> str:
+                    try:
+                        n = float(val)
+                    except (TypeError, ValueError):
+                        return "—"
+                    if pd.isna(n):
+                        return "—"
+                    return fmt.format(n)
+
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Connors RSI", _m(last.get("mom_crsi"), "{:.1f}"))
+                c2.metric("ADX", _m(last.get("adx_adx"), "{:.1f}"))
+                c3.metric("CMF", _m(last.get("cmf"), "{:.2f}"))
+                c4.metric("Vol regime", str(last.get("vol_regime") or "—"))
+                d1, d2, d3 = st.columns(3)
+                d1.metric("Momentum score", _m(sig.get("momentum_score"), "{:+.1f}"))
+                vol20 = last.get("vol_hist_20")
+                d2.metric("Hist vol 20D", _m(None if pd.isna(vol20) else float(vol20) * 100, "{:.1f}%") if pd.notna(vol20) else "—")
+                d3.metric("Long stop (ATR)", _m(last.get("long_stop"), "{:.2f}"))
+                chart_cols = [c for c in ["close", "bb_upper", "bb_lower", "kc_upper", "kc_lower"] if c in report["tech"].columns]
+                if chart_cols:
+                    plot_df = report["tech"][["date"] + chart_cols].tail(60).set_index("date")
+                    st.line_chart(plot_df)
+            with rs_t:
+                st.markdown(f"**Stage:** {stage.get('stage', '—')} · {stage.get('signal', '')}")
+                rs = report.get("rs") or {}
+                if rs.get("error"):
+                    st.caption(f"RS vs market median skipped: {rs['error']}")
+                else:
+                    r1, r2, r3, r4 = st.columns(4)
+                    r1.metric("RS grade", str(rs.get("rs_grade") or "—"))
+                    r2.metric("RS rating", f"{float(rs.get('rs_rating') or 0):.0f}")
+                    r3.metric("RS 20D", f"{float(rs.get('rs_20d') or 0):+.1f}%")
+                    r4.metric("RS momentum", f"{float(rs.get('rs_momentum_score') or 0):.0f}")
+            with risk_t:
+                risk = report.get("risk") or {}
+                if not risk:
+                    st.info("Not enough returns for risk metrics.")
+                else:
+                    e1, e2, e3, e4 = st.columns(4)
+                    e1.metric("Sharpe", f"{float(risk.get('sharpe_ratio') or 0):.2f}")
+                    e2.metric("Sortino", f"{float(risk.get('sortino_ratio') or 0):.2f}")
+                    e3.metric("Max DD", f"{float(risk.get('max_drawdown') or 0)*100:.1f}%")
+                    e4.metric("Win rate", f"{float(risk.get('win_rate') or 0)*100:.0f}%")
+
 with thesis_tab:
     t_left, t_right = st.columns([2, 1])
     with t_left:
@@ -995,5 +1078,7 @@ Conviction blends delivery level, delivery vs average, volume, 5-day price, and 
 **Trackers** rank *disclosed* buying (bulk/block client, promoter SAST, MF-tagged names) plus [NSE corporate announcements](https://www.nseindia.com/companies-listing/corporate-filings-announcements) with keyword sentiment. That is not official FII/DII stock-wise data.
 
 This is a research screen, not a recommendation. Check results, shareholding, and news before you invest.
+
+**Institutional tab** adds Connors RSI, ADX, CMF, ATR stops, RS grade vs the market median, Weinstein stage, and Sharpe/Sortino on the selected stock’s cached NSE history.
         """
     )
