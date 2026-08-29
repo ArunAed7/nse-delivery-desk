@@ -36,6 +36,13 @@ def yahoo_to_quality_inputs(info: dict, price: float | None = None) -> dict:
     if de > 5:
         de = de / 100
     gm = float(info.get("grossMargins") or 0)
+    assets_from_yahoo = float(info.get("totalAssets") or 0) > 0
+    complete = bool(
+        assets_from_yahoo
+        and info.get("netIncomeToCommon")
+        and (info.get("operatingCashflow") or info.get("freeCashflow"))
+        and info.get("returnOnAssets")
+    )
     return {
         "roe": roe,
         "roa_current": float(info.get("returnOnAssets") or roe * 0.5),
@@ -70,13 +77,16 @@ def yahoo_to_quality_inputs(info: dict, price: float | None = None) -> dict:
         "invested_capital": max(mcap - cash + debt, 1),
         "current_price": float(price or 0),
         "market_cap": mcap,
+        "inputs_complete": complete,
+        "assets_are_market_cap": not assets_from_yahoo and mcap > 0,
+        "priors_are_fabricated": True,
     }
 
 
 def deals_daily_institution_flow(deals: pd.DataFrame | None = None) -> pd.DataFrame:
     deals = deals if deals is not None else load_cached_deals()
     if deals is None or deals.empty or "CLIENT_TYPE" not in deals.columns:
-        return pd.DataFrame(columns=["Date", "FII_Net", "DII_Net", "SIP_Inflow"])
+        return pd.DataFrame(columns=["Date", "FPI_Net", "DII_Net"])
     work = deals.copy()
     work["DEAL_DATE"] = pd.to_datetime(work["DEAL_DATE"], errors="coerce")
     work["VALUE_CR"] = pd.to_numeric(work.get("VALUE_CR"), errors="coerce").fillna(0)
@@ -84,14 +94,10 @@ def deals_daily_institution_flow(deals: pd.DataFrame | None = None) -> pd.DataFr
     dii = work[work["CLIENT_TYPE"].isin(["MUTUAL_FUND", "INSURANCE", "BANK_DII"])].groupby(
         work["DEAL_DATE"].dt.normalize()
     )["VALUE_CR"].sum()
-    mf_src = work[work["CLIENT_TYPE"].eq("MUTUAL_FUND")].copy()
-    mf_src["BUY"] = mf_src["VALUE_CR"].clip(lower=0)
-    mf = mf_src.groupby(mf_src["DEAL_DATE"].dt.normalize())["BUY"].sum()
     idx = fii.index.union(dii.index)
     out = pd.DataFrame({"Date": idx})
-    out["FII_Net"] = out["Date"].map(fii).fillna(0) * 100
-    out["DII_Net"] = out["Date"].map(dii).fillna(0) * 100
-    out["SIP_Inflow"] = out["Date"].map(mf).fillna(0) * 100 + 12000
+    out["FPI_Net"] = out["Date"].map(fii).fillna(0)
+    out["DII_Net"] = out["Date"].map(dii).fillna(0)
     return out.sort_values("Date")
 
 

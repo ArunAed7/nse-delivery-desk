@@ -7,7 +7,7 @@ import pandas as pd
 from nselib.libutil import nse_urlfetch
 
 from src.nse_api import nse_json, records_to_frame
-from src.nse_data import CACHE_DIR
+from src.nse_data import CACHE_DIR, persist_parquet
 from src.sectors import normalize_symbol
 
 PIT_PATH = CACHE_DIR / "promoter_pit.parquet"
@@ -133,7 +133,9 @@ def _normalize_sast(df: pd.DataFrame) -> pd.DataFrame:
         is_p = df[flag_col].astype(str).str.upper().isin(["Y", "YES", "TRUE", "1"])
         out["CATEGORY"] = is_p.map({True: "Promoter", False: "Other"})
     else:
-        out["CATEGORY"] = "Promoter"
+        out["CATEGORY"] = [
+            "Promoter" if _is_promoter("", name) else "Other" for name in out["ACQUIRER"]
+        ]
     buy_q = pd.to_numeric(df[acq_qty], errors="coerce") if acq_qty else 0
     sell_q = pd.to_numeric(df[sale_qty], errors="coerce") if sale_qty else 0
     out["QUANTITY"] = buy_q.fillna(0) - sell_q.fillna(0)
@@ -188,6 +190,5 @@ def refresh_promoters(from_date: date, to_date: date) -> pd.DataFrame:
     else:
         pit = pd.concat(frames, ignore_index=True)
         pit = pit.drop_duplicates(subset=["SYMBOL", "DEAL_DATE", "ACQUIRER", "SIDE", "QUANTITY", "SOURCE"], keep="first")
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    pit.to_parquet(PIT_PATH, index=False)
+    pit, _status = persist_parquet(PIT_PATH, pit)
     return pit

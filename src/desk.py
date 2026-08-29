@@ -88,8 +88,9 @@ def assemble_desk(lookback: int, series: list[str]) -> dict:
         snapshot["MARKET_CAP"] = pd.NA
         snapshot["MARKET_CAP_CR"] = pd.NA
     span = with_ind.groupby("SYMBOL")["CLOSE_PRICE"].agg(["first", "last"])
-    span["CHG_1Y"] = span["last"] / span["first"] - 1
-    snapshot = snapshot.merge(span[["CHG_1Y"]].reset_index(), on="SYMBOL", how="left")
+    span["CHG_LOOKBACK"] = span["last"] / span["first"] - 1
+    snapshot = snapshot.merge(span[["CHG_LOOKBACK"]].reset_index(), on="SYMBOL", how="left")
+    snapshot["CHG_1Y"] = snapshot["CHG_LOOKBACK"]
     deals = load_cached_deals()
     flags = deal_flags(deals)
     snapshot = snapshot.merge(flags, on="SYMBOL", how="left")
@@ -105,11 +106,12 @@ def assemble_desk(lookback: int, series: list[str]) -> dict:
     keep = [c for c in FLOW_COLS if c in flow_book.columns]
     if not flow_book.empty and keep:
         snapshot = snapshot.merge(flow_book[keep], on="SYMBOL", how="left")
-    for col, fill in (("HEAT", 0.0), ("NET_DISCLOSED_CR", 0.0), ("CUMULATIVE_BUY_CR", 0.0), ("NEWS_SENTIMENT", 0.0)):
+    for col in ("HEAT", "NEWS_SENTIMENT"):
         if col not in snapshot.columns:
-            snapshot[col] = fill
+            snapshot[col] = 0.0
         else:
-            snapshot[col] = snapshot[col].fillna(fill)
+            snapshot[col] = snapshot[col].fillna(0)
+    # Leave NET_DISCLOSED_CR / CUMULATIVE_BUY_CR as NA when the name has no disclosed prints.
     if series:
         wanted = {s.upper() for s in series}
         snapshot = snapshot[snapshot["SERIES"].isin(wanted)].copy() if "SERIES" in snapshot.columns else snapshot

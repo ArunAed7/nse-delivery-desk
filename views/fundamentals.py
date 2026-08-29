@@ -17,7 +17,7 @@ def page() -> None:
     page_header(
         "Research · Yahoo + last close",
         "Fundamentals",
-        "Piotroski, Altman, accruals, DCF/reverse DCF and ROIC spread. Incomplete filings stay directional.",
+        "Yahoo snapshot only. Missing balance-sheet fields are not filled in as if they were filings.",
     )
     if not symbol:
         empty_state("Pin a stock first", "Use Jump or the screener.")
@@ -36,6 +36,12 @@ def page() -> None:
             return
         price = float(row["CLOSE_PRICE"]) if row is not None and pd.notna(row.get("CLOSE_PRICE")) else None
         fin = yahoo_to_quality_inputs(info, price)
+        if not fin.get("inputs_complete"):
+            st.warning(
+                "Yahoo did not return a full balance sheet. This page will not print Piotroski, Altman, or DCF."
+            )
+            st.caption("Raw Yahoo keys with values: " + ", ".join(sorted(k for k, v in info.items() if v not in (None, "", 0, 0.0)))[:400])
+            return
         eq = calculate_earnings_quality_metrics(fin)
         prof = calculate_profitability_metrics(fin)
         try:
@@ -53,6 +59,6 @@ def page() -> None:
         st.caption(f"ROIC vs WACC: {spread}")
         st.caption(f"Consensus: {val.get('consensus_recommendation')} · MoS {fmt_num(val.get('overall_margin_of_safety'), '{:.0%}')}")
         st.json({"earnings_quality": eq, "profitability": prof, "deep": {k: full[k] for k in list(full)[:8]} if full else {}, "valuation": val})
-        st.caption("Yahoo does not fill every Piotroski input. Treat F-score as directional.")
+        st.caption("Even with a complete Yahoo snapshot these models are not a substitute for annual reports.")
     else:
         st.info("Click fetch to run the fundamental engine on this name.")

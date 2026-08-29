@@ -225,4 +225,8 @@ def top_ideas(df: pd.DataFrame, n: int = 6) -> pd.DataFrame:
     prefer = df[df["SIGNAL"].isin(["Strong accumulation", "Quiet accumulation", "Dip absorption", "T2T volume surge"])]
     if prefer.empty:
         prefer = df[df.get("INVESTABLE", True) == True]  # noqa: E712
+    if "PRICE_UNRELIABLE" in prefer.columns:
+        prefer = prefer[~prefer["PRICE_UNRELIABLE"].fillna(False)]
+    if "SESSIONS" in prefer.columns:
+        prefer = prefer[pd.to_numeric(prefer["SESSIONS"], errors="coerce").fillna(0) >= 8]
     return prefer.sort_values(["ACCUM_SCORE", "DELIV_VALUE_CR"], ascending=False).head(n)

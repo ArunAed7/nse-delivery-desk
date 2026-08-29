@@ -17,8 +17,8 @@ def nse_json(url: str, origin: str) -> Any:
         return []
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
-        return text
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"NSE returned non-JSON for {url[:80]}") from exc
 
 
 def records_to_frame(payload: Any) -> pd.DataFrame:

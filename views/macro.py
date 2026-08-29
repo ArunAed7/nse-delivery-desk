@@ -16,7 +16,7 @@ def page() -> None:
     page_header(
         "Macro · disclosed tags only",
         "Regime & liquidity",
-        "Market-median close vs 50/200DMA. Flow is bulk/block tagged FPI vs MF/insurance/bank — not official stock-wise FII/DII.",
+        "Market-median close vs 50/200DMA. Flow is bulk/block tagged FPI vs MF/insurance/bank in ₹ Cr — not official FII/DII and not AMFI SIP.",
     )
     px = market_close_proxy(history)
     index_df = pd.DataFrame({"Close": px}) if not px.empty else pd.DataFrame()
@@ -38,10 +38,11 @@ def page() -> None:
     k3.metric("Liquidity score", str(report.get("liquidity_score") or "—"))
     k4.metric("Stance", str(report.get("recommendation") or "—"))
     if not flow.empty:
-        st.subheader("Disclosed client-type net (₹ Lakh proxy)")
-        chart = flow.set_index("Date")[["FII_Net", "DII_Net"]]
+        st.subheader("Disclosed client-type net (₹ Cr)")
+        cols = [c for c in ["FPI_Net", "DII_Net"] if c in flow.columns]
+        chart = flow.set_index("Date")[cols]
         st.line_chart(chart)
-        st.caption("Scaled from bulk/block VALUE_CR. SIP_Inflow is a MF-buy placeholder plus a constant, not AMFI SIP.")
+        st.caption("Client type is a name regex on bulk/block prints. Not NSE FII/DII and not AMFI SIP.")
         analyzer = LiquidityFlowAnalyzer().load_flow_data(flow)
         st.write(analyzer.calculate_flow_trend())
     st.subheader("Sector rotation")
@@ -50,8 +51,9 @@ def page() -> None:
         st.info("No sector 20D data.")
     else:
         st.dataframe(rot, width="stretch", hide_index=True)
-        perf = rot.set_index("SECTOR")[["CHG_20D"]].rename(columns={"CHG_20D": "3M"})
-        perf["6M"] = perf["3M"]
+        perf = rot.set_index("SECTOR")[["CHG_20D"]].rename(columns={"CHG_20D": "20D"})
+        perf["3M"] = perf["20D"]
+        perf["6M"] = perf["20D"]
         tops = MacroRegimeDetector().get_sector_rotation_signal(perf)
         if tops:
-            st.caption("Momentum overlay (3M/6M proxy from 20D): " + ", ".join(tops))
+            st.caption("Momentum overlay uses 20D twice as a 3M/6M stand-in: " + ", ".join(tops))

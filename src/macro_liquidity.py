@@ -66,7 +66,7 @@ class LiquidityFlowAnalyzer:
         self.flow_data = None
         
     def load_flow_data(self, df: pd.DataFrame):
-        """Columns: Date, FII_Net, DII_Net, SIP_Inflow"""
+        """Columns: Date, FPI_Net, DII_Net (₹ Cr, tagged bulk/block)."""
         self.flow_data = df
         return self
         
@@ -75,15 +75,15 @@ class LiquidityFlowAnalyzer:
         Determines if institutions are accumulating or distributing.
         """
         if self.flow_data is None:
-            return {'FII': 'Neutral', 'DII': 'Neutral'}
-            
-        fii_avg = self.flow_data['FII_Net'].rolling(window).mean().iloc[-1]
-        dii_avg = self.flow_data['DII_Net'].rolling(window).mean().iloc[-1]
-        
+            return {"FPI": "Neutral", "DII": "Neutral"}
+        fpi_col = "FPI_Net" if "FPI_Net" in self.flow_data.columns else "FII_Net"
+        if fpi_col not in self.flow_data.columns or "DII_Net" not in self.flow_data.columns:
+            return {"FPI": "Neutral", "DII": "Neutral"}
+        fii_avg = self.flow_data[fpi_col].rolling(window).mean().iloc[-1]
+        dii_avg = self.flow_data["DII_Net"].rolling(window).mean().iloc[-1]
         fii_trend = "Buying" if fii_avg > 0 else "Selling"
         dii_trend = "Buying" if dii_avg > 0 else "Selling"
-        
-        return {'FII': fii_trend, 'DII': dii_trend}
+        return {"FPI": fii_trend, "DII": dii_trend, "FII": fii_trend}
         
     def liquidity_score(self) -> int:
         """
@@ -92,24 +92,17 @@ class LiquidityFlowAnalyzer:
         """
         if self.flow_data is None:
             return 50
-            
         score = 50
-        
-        # FII Flows (last 5 days net)
-        recent_fii = self.flow_data['FII_Net'].tail(5).sum()
-        if recent_fii > 5000: score += 20
+        fpi_col = "FPI_Net" if "FPI_Net" in self.flow_data.columns else "FII_Net"
+        if fpi_col not in self.flow_data.columns:
+            return 50
+        recent_fii = self.flow_data[fpi_col].tail(5).sum()
+        if recent_fii > 500: score += 20
         elif recent_fii > 0: score += 10
-        elif recent_fii < -5000: score -= 20
+        elif recent_fii < -500: score -= 20
         elif recent_fii < 0: score -= 10
-        
-        # DII Flows (counter balance)
-        recent_dii = self.flow_data['DII_Net'].tail(5).sum()
-        if recent_dii > 5000: score += 15 # DIIs buying supports market
-        
-        # SIP Inflows (steady money)
-        avg_sip = self.flow_data['SIP_Inflow'].mean()
-        if avg_sip > 15000: score += 15 # Record inflows
-        
+        recent_dii = self.flow_data["DII_Net"].tail(5).sum() if "DII_Net" in self.flow_data.columns else 0
+        if recent_dii > 500: score += 15
         return max(0, min(100, score))
         
     def bulk_deal_heatmap(self, deals_df: pd.DataFrame) -> pd.DataFrame:
@@ -131,7 +124,7 @@ def analyze_macro_liquidity(index_df: pd.DataFrame, flow_df: pd.DataFrame) -> Di
     
     return {
         'regime': macro.detect_regime(index_df),
-        'fii_trend': liq.calculate_flow_trend()['FII'],
+        'fii_trend': liq.calculate_flow_trend().get('FPI') or liq.calculate_flow_trend().get('FII'),
         'liquidity_score': liq.liquidity_score(),
         'recommendation': 'Overweight Equities' if liq.liquidity_score() > 70 else 'Neutral'
     }

@@ -55,11 +55,10 @@ def build_flow_book(
         news = news[pd.to_datetime(news["ANN_DATE"], errors="coerce") >= start].copy()
 
     symbols = pd.Index([], dtype=object)
-    for frame in (deals, promoters, news):
+    for frame in (deals, promoters):
         if frame is not None and not frame.empty and "SYMBOL" in frame.columns:
             symbols = symbols.union(frame["SYMBOL"].dropna().unique())
-    if snapshot is not None and not snapshot.empty:
-        symbols = symbols.union(snapshot["SYMBOL"].dropna().unique())
+    # Do not add the whole universe: names with no prints stay NA on the snapshot.
     book = pd.DataFrame({"SYMBOL": symbols.astype(str)}).drop_duplicates()
     if book.empty:
         return book
@@ -113,21 +112,6 @@ def build_flow_book(
         book["NET_PROMOTER_CR"] = 0.0
     if "PROMOTER_BUY_CR" not in book.columns:
         book["PROMOTER_BUY_CR"] = 0.0
-    if not deals.empty and "CLIENT_TYPE" in deals.columns:
-        tagged = _sum_by(deals, deals["CLIENT_TYPE"].eq("PROMOTER"), "VALUE_CR", "_PROM_DEAL_CR")
-        tagged_buy = _sum_by(
-            deals,
-            deals["CLIENT_TYPE"].eq("PROMOTER") & deals["VALUE_CR"].gt(0),
-            "VALUE_CR",
-            "_PROM_DEAL_BUY_CR",
-        )
-        book = book.merge(tagged, on="SYMBOL", how="left")
-        book = book.merge(tagged_buy, on="SYMBOL", how="left")
-        book["_PROM_DEAL_CR"] = book["_PROM_DEAL_CR"].fillna(0)
-        book["_PROM_DEAL_BUY_CR"] = book["_PROM_DEAL_BUY_CR"].fillna(0)
-        book["NET_PROMOTER_CR"] = book["NET_PROMOTER_CR"].fillna(0) + book["_PROM_DEAL_CR"]
-        book["PROMOTER_BUY_CR"] = book["PROMOTER_BUY_CR"].fillna(0) + book["_PROM_DEAL_BUY_CR"]
-        book = book.drop(columns=["_PROM_DEAL_CR", "_PROM_DEAL_BUY_CR"])
 
     numeric_cols = [
         "NET_BULK_CR",
@@ -142,9 +126,9 @@ def build_flow_book(
         book[col] = pd.to_numeric(book[col], errors="coerce").fillna(0.0)
 
     book["CUMULATIVE_BUY_CR"] = book["CUMULATIVE_DEAL_BUY_CR"] + book["PROMOTER_BUY_CR"]
-    book["NET_DISCLOSED_CR"] = (
-        book["NET_BULK_CR"] + book["NET_BLOCK_CR"] + book["NET_PROMOTER_CR"]
-    )
+    book["NET_DISCLOSED_CR"] = book["NET_BULK_CR"] + book["NET_BLOCK_CR"]
+    no_print = (book["NET_BULK_CR"] == 0) & (book["NET_BLOCK_CR"] == 0)
+    book.loc[no_print, "NET_DISCLOSED_CR"] = pd.NA
 
     sent = rolling_sentiment(news) if not news.empty else pd.DataFrame()
     if not sent.empty:
@@ -249,8 +233,8 @@ def tracker_caches_stale(max_age_hours: int = 20) -> bool:
     ]
     if any(not p.exists() for p in paths):
         return True
-    newest = max(p.stat().st_mtime for p in paths)
-    age_h = (datetime.now().timestamp() - newest) / 3600
+    oldest = min(p.stat().st_mtime for p in paths)
+    age_h = (datetime.now().timestamp() - oldest) / 3600
     return age_h >= max_age_hours
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pandas as pd
 import streamlit as st
@@ -8,7 +8,7 @@ import streamlit as st
 from src.desk import assemble_desk
 from src.fundamentals import refresh_market_caps, refresh_pe_ratios
 from src.ui import brand_sidebar, focus_strip, inject_css
-from src.nse_data import auto_update_if_stale, latest_cached_date, refresh_history
+from src.nse_data import auto_update_if_stale, last_session_date, latest_cached_date, nse_today, refresh_history, should_auto_refresh
 from src.sectors import load_sectors
 from src.trackers import FLOW_WINDOW_DAYS, refresh_institutional, should_refresh_institutional
 from src.universe import load_universe
@@ -90,26 +90,28 @@ with st.sidebar:
         sma_cross = st.checkbox("20DMA above 50DMA")
         deals_only = st.checkbox("Bulk/block deals only")
 
-if not refresh and not refresh_mcap and not st.session_state.get("_bootstrapped"):
-    with st.spinner("Checking NSE for today's bhavcopy…"):
-        auto = auto_update_if_stale()
-        need_flow = should_refresh_institutional()
-    if (auto.get("ran") and auto.get("fetched")) or need_flow:
-        last = latest_cached_date() or date.today()
-        if auto.get("ran") and auto.get("fetched"):
+if not refresh and not refresh_mcap:
+    auto_due = should_auto_refresh()
+    need_flow = should_refresh_institutional()
+    if not st.session_state.get("_bootstrapped") or auto_due or need_flow:
+        with st.spinner("Checking NSE for today's bhavcopy…"):
+            auto = auto_update_if_stale()
+        if (auto.get("ran") and auto.get("fetched")) or need_flow:
+            last = latest_cached_date() or nse_today()
+            if auto.get("ran") and auto.get("fetched"):
+                try:
+                    refresh_pe_ratios(last)
+                except Exception:
+                    pass
             try:
-                refresh_pe_ratios(last)
+                with st.spinner("Updating 90-day disclosed flow…"):
+                    refresh_institutional(last - timedelta(days=FLOW_WINDOW_DAYS), last)
             except Exception:
                 pass
-        try:
-            with st.spinner("Updating 90-day disclosed flow…"):
-                refresh_institutional(last - timedelta(days=FLOW_WINDOW_DAYS), last)
-        except Exception:
-            pass
+            st.session_state["_bootstrapped"] = True
+            st.cache_data.clear()
+            st.rerun()
         st.session_state["_bootstrapped"] = True
-        st.cache_data.clear()
-        st.rerun()
-    st.session_state["_bootstrapped"] = True
 
 if refresh:
     bar = st.progress(0, text="Starting NSE download…")
@@ -158,8 +160,8 @@ if refresh_mcap:
 
 desk = assemble_desk(int(lookback), series)
 last_dt = desk.get("last_dt")
-if last_dt and last_dt < date.today():
-    st.sidebar.caption(f"Cache {last_dt:%d %b %Y}. NSE posts the full bhavcopy after hours.")
+if last_dt and last_dt < last_session_date():
+    st.sidebar.caption(f"Cache {last_dt:%d %b %Y}. NSE posts the full bhavcopy after hours (IST).")
 
 snapshot = desk.get("snapshot", pd.DataFrame())
 with st.sidebar:
@@ -172,10 +174,12 @@ with st.sidebar:
         jump_labels = (catalog["SYMBOL"].astype(str) + " — " + catalog["NAME"].astype(str)).tolist()
         label_to_symbol = dict(zip(jump_labels, catalog["SYMBOL"].astype(str).tolist()))
     jumped_label = st.selectbox("Jump", options=jump_labels, index=None, placeholder="Jump to a stock", key="stock_jump_select")
-    if jumped_label:
+    if jumped_label and jumped_label != st.session_state.get("_last_jump"):
         st.session_state["focus_symbol"] = label_to_symbol.get(jumped_label)
-    elif search and search.strip() and not snapshot.empty:
-        q = search.strip().upper()
+        st.session_state["_last_jump"] = jumped_label
+    search_key = search.strip().upper() if search and search.strip() else ""
+    if search_key and search_key != st.session_state.get("_last_search") and not snapshot.empty:
+        q = search_key
         hit = snapshot[snapshot["SYMBOL"].eq(q)]
         if hit.empty:
             hit = snapshot[snapshot["SYMBOL"].str.contains(q, na=False, regex=False)]
@@ -183,6 +187,7 @@ with st.sidebar:
             hit = snapshot[snapshot["NAME"].astype(str).str.upper().str.contains(q, na=False, regex=False)]
         if not hit.empty:
             st.session_state["focus_symbol"] = str(hit.iloc[0]["SYMBOL"])
+        st.session_state["_last_search"] = search_key
     pinned = st.session_state.get("focus_symbol")
     if pinned:
         st.badge(str(pinned), color="orange")

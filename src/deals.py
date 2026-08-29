@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.flow import annotate_deals
-from src.nse_data import CACHE_DIR
+from src.nse_data import CACHE_DIR, persist_parquet
 from src.sectors import normalize_symbol
 
 DEALS_PATH = CACHE_DIR / "deals_full.parquet"
@@ -124,9 +124,9 @@ def refresh_deals(from_date: date, to_date: date) -> pd.DataFrame:
             subset=["SYMBOL", "DEAL_DATE", "DEAL_TYPE", "CLIENT_NAME", "SIDE", "QUANTITY", "PRICE"],
             keep="first",
         )
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    deals.to_parquet(DEALS_PATH, index=False)
-    deals[["SYMBOL", "DEAL_DATE", "DEAL_TYPE"]].to_parquet(LEGACY_PATH, index=False)
+    deals, status = persist_parquet(DEALS_PATH, deals)
+    if status == "wrote" and not deals.empty:
+        deals[["SYMBOL", "DEAL_DATE", "DEAL_TYPE"]].to_parquet(LEGACY_PATH, index=False)
     return deals
 
 
