@@ -13,18 +13,20 @@ from src.portfolio_risk import (
     risk_parity_allocation,
     style_box_classification,
 )
-from src.ui import desk, fmt_num, inject_css
+from src.ui import desk, empty_state, fmt_num, page_header
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     snapshot = d.get("snapshot", pd.DataFrame())
     with_ind = d.get("with_ind", pd.DataFrame())
-    st.title("Portfolio construction")
-    st.caption("Factor tilts on the live board, then mean-variance / risk-parity on high-conviction names.")
+    page_header(
+        "Portfolio · live board",
+        "Construction",
+        "Factor tilts, then mean-variance / risk-parity on high-conviction names.",
+    )
     if snapshot.empty:
-        st.info("No snapshot.")
+        empty_state("No snapshot", "Load market data from the sidebar.")
         return
     indexed = snapshot.set_index("SYMBOL")
     expo = calculate_factor_exposures(indexed)

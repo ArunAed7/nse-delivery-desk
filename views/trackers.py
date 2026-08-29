@@ -7,18 +7,20 @@ from src.announcements import load_cached_announcements
 from src.promoters import load_cached_promoters
 from src.sectors import attach_sectors
 from src.trackers import mf_ledger, sector_rollup
-from src.ui import desk, inject_css
+from src.ui import desk, empty_state, page_header
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     book = d.get("flow_book", pd.DataFrame()).copy()
     deals = d.get("deals", pd.DataFrame())
     last_dt = d.get("last_dt")
     picked = (st.session_state.get("filters") or {}).get("picked_sectors") or []
-    st.title("Disclosed flow")
-    st.caption("Bulk/block client names, promoter SAST, MF tags, NSE announcements. Not stock-wise FII/DII.")
+    page_header(
+        "Markets · 90-day window",
+        "Disclosed flow",
+        "Bulk/block client names, promoter SAST, MF tags, NSE announcements. Not stock-wise FII/DII.",
+    )
     if picked and not book.empty:
         book = book[book["SECTOR"].isin(picked)]
     sectors_view = sector_rollup(book)
@@ -42,7 +44,7 @@ def page() -> None:
     with bulk_tab:
         view = attach_sectors(deals) if deals is not None and not deals.empty else pd.DataFrame()
         if view.empty:
-            st.info("No bulk/block cache.")
+            empty_state("No bulk/block cache", "Refresh market data to pull NSE deal files.")
         else:
             if picked:
                 view = view[view["SECTOR"].isin(picked)]

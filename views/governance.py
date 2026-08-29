@@ -6,17 +6,19 @@ import streamlit as st
 from src.desk import snapshot_row
 from src.governance_esg import ESGScorer, analyze_governance
 from src.promoters import load_cached_promoters
-from src.ui import desk, fmt_num, inject_css, pick_symbol
+from src.ui import desk, empty_state, fmt_num, page_header, pick_symbol
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     symbol = pick_symbol()
-    st.title("Governance")
-    st.caption("Promoter SAST prints feed a pledge-style score; ESG scorer is a structured overlay, not a rating agency.")
+    page_header(
+        "Research · SAST overlay",
+        "Governance",
+        "Promoter SAST prints feed a pledge-style score. ESG is a structured overlay, not a rating agency.",
+    )
     if not symbol:
-        st.info("Pin a stock.")
+        empty_state("Pin a stock", "Jump or Search in the sidebar.")
         return
     row = snapshot_row(d, symbol)
     st.subheader(symbol)

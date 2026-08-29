@@ -8,17 +8,19 @@ from src.desk import snapshot_row
 from src.fundamentals import fetch_fundamentals
 from src.fundamentals_deep import calculate_earnings_quality_metrics, calculate_profitability_metrics, comprehensive_fundamental_analysis
 from src.fundamentals_institutional import comprehensive_valuation, free_cash_flow_yield, roic_vs_wacc
-from src.ui import desk, fmt_num, inject_css, pick_symbol
+from src.ui import desk, empty_state, fmt_num, page_header, pick_symbol
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     symbol = pick_symbol()
-    st.title("Fundamentals")
-    st.caption("Piotroski, Altman, accruals, DCF/reverse DCF and ROIC spread from Yahoo + last NSE close. Incomplete filings are labelled.")
+    page_header(
+        "Research · Yahoo + last close",
+        "Fundamentals",
+        "Piotroski, Altman, accruals, DCF/reverse DCF and ROIC spread. Incomplete filings stay directional.",
+    )
     if not symbol:
-        st.info("Pin a stock first.")
+        empty_state("Pin a stock first", "Use Jump or the screener.")
         return
     row = snapshot_row(d, symbol)
     st.subheader(symbol)

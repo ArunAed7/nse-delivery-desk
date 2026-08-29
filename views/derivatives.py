@@ -6,17 +6,19 @@ import streamlit as st
 from src.bridges import option_chain_to_oi
 from src.derivatives_intelligence import DerivativesIntelligence
 from src.desk import snapshot_row
-from src.ui import desk, fmt_num, inject_css, pick_symbol
+from src.ui import desk, empty_state, fmt_num, page_header, pick_symbol
 
 
 def page() -> None:
-    inject_css()
     symbol = pick_symbol()
     d = desk()
-    st.title("Derivatives")
-    st.caption("Live NSE option chain → PCR, max pain, OI buildup. Fails silently for cash-only names.")
+    page_header(
+        "Research · F&O",
+        "Derivatives",
+        "Live NSE option chain → PCR, max pain, OI buildup. Cash-only names return empty.",
+    )
     if not symbol:
-        st.info("Pin an F&O name (e.g. RELIANCE, INFY).")
+        empty_state("Pin an F&O name", "Try RELIANCE or INFY from Jump.")
         return
     row = snapshot_row(d, symbol)
     spot_px = float(row["CLOSE_PRICE"]) if row is not None and pd.notna(row.get("CLOSE_PRICE")) else None

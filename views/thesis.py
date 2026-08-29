@@ -7,17 +7,19 @@ from src.announcements import load_cached_announcements
 from src.desk import snapshot_row, symbol_history
 from src.insights import thesis_for_row
 from src.promoters import load_cached_promoters
-from src.ui import build_price_chart, desk, inject_css, pick_symbol, signal_badge
+from src.ui import build_price_chart, checklist_html, desk, empty_state, page_header, pick_symbol, signal_badge
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     symbol = pick_symbol()
-    st.title("Thesis")
-    st.caption("Tape read, checklist, chart, disclosed flow and NSE headlines for the pinned name.")
+    page_header(
+        "Markets · name-level",
+        "Thesis",
+        "Tape read, checklist, chart, disclosed flow and NSE headlines for the pinned name.",
+    )
     if not symbol:
-        st.info("Pin a stock from Jump or the screener.")
+        empty_state("Nothing pinned", "Use Jump, Search, the screener, or Pin on Command.")
         return
     row = snapshot_row(d, symbol)
     if row is None:
@@ -43,8 +45,7 @@ def page() -> None:
         st.info(thesis["action"])
     with right:
         st.markdown("**Checklist**")
-        for name, status in thesis["checks"].items():
-            st.write(f"{name}: **{status}**")
+        checklist_html(thesis["checks"])
     hist = symbol_history(d, symbol)
     if not hist.empty:
         st.plotly_chart(build_price_chart(hist, symbol), width="stretch")
