@@ -69,6 +69,11 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
 }
 .brand-name { font-family: Outfit, sans-serif; font-weight: 700; font-size: 1.05rem; line-height: 1.1; color: #EDE8DF; }
 .brand-sub { font-size: 0.72rem; color: #8A8175; margin-top: 2px; letter-spacing: 0.04em; text-transform: uppercase; }
+.desk-version {
+  font-family: "IBM Plex Mono", monospace; font-size: 0.68rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #07090C; background: #E8B86D;
+  display: inline-block; padding: 3px 8px; border-radius: 4px; margin-top: 8px;
+}
 
 .desk-hero { margin: 0 0 1.1rem; }
 .desk-kicker {
@@ -158,6 +163,7 @@ def brand_sidebar() -> None:
   <div>
     <div class="brand-name">Delivery desk</div>
     <div class="brand-sub">Tape · disclosed flow</div>
+    <div class="desk-version">Amber terminal</div>
   </div>
 </div>
 """,
