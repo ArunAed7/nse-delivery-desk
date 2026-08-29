@@ -16,7 +16,7 @@ def page() -> None:
     page_header(
         "Research · hold-out slice",
         "ML forecast",
-        "Gradient boosting on lagged returns/RSI. Directional accuracy only — not a recommendation.",
+        "Time-series split on lagged returns/RSI. Directional accuracy on the hold-out slice only — not a live forecast you should trade.",
     )
     if not symbol:
         empty_state("Pin a stock first", "Need a name with a long lookback (180/365).")

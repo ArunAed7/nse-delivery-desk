@@ -33,8 +33,8 @@ _FPI = re.compile(
     r"\bFPI\b|\bFII\b|FOREIGN PORTFOLIO|FOREIGN INSTITUTIONAL|GOVERNMENT OF SINGAPORE"
     r"|NORGES BANK|VANGUARD|BLACKROCK|\bISHARES\b|MORGAN STANLEY|GOLDMAN SACHS"
     r"|MERRILL LYNCH|\bUBS\b|\bNOMURA\b|JPMORGAN|JP MORGAN|CITIGROUP|\bBARCLAYS\b"
-    r"|SOCIETE GENERALE|CREDIT SUISSE|GOLDMAN SACHS|HSBC BANK \(MAURITIUS\)"
-    r"|THE MTBDIL|CUSTODY|LUXEMBOURG|CAYMAN|IRELAND|SINGAPORE",
+    r"|SOCIETE GENERALE|CREDIT SUISSE|HSBC BANK \(MAURITIUS\)"
+    r"|THE MTBJ|GOVERNMENT PENSION INVESTMENT",
     re.I,
 )
 _PROM = re.compile(r"PROMOTER|PROMOTER GROUP|PERSON ACTING IN CONCERT|\bPAC\b", re.I)
@@ -68,7 +68,9 @@ def signed_value_cr(qty, price, side) -> float:
     p = pd.to_numeric(price, errors="coerce")
     if pd.isna(q) or pd.isna(p):
         return float("nan")
-    sign = -1.0 if str(side or "").strip().upper().startswith("S") else 1.0
+    side_u = str(side or "").strip().upper()
+    sell = side_u.startswith("S") or "SELL" in side_u or "DISPOS" in side_u
+    sign = -1.0 if sell else 1.0
     return sign * q * p / 1e7
 
 

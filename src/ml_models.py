@@ -157,13 +157,11 @@ def run_ml_pipeline(price_df: pd.DataFrame) -> Dict:
     X = feat_df[['Ret_Lag1', 'Ret_Lag2', 'MA_Ratio', 'Vol_Ratio', 'RSI', 'Volatility']]
     y = feat_df['Close'].pct_change().shift(-1) # Next day return
     
-    X = X.dropna()
-    y = y.dropna()
-    
-    # Align
-    min_len = min(len(X), len(y))
-    X = X.iloc[-min_len:]
-    y = y.iloc[-min_len:]
+    aligned = pd.concat([X, y.rename("next_ret")], axis=1).dropna()
+    if aligned.empty:
+        return {"error": "Not enough aligned rows after dropping NA"}
+    X = aligned.drop(columns=["next_ret"])
+    y = aligned["next_ret"]
     
     # Train/Test split (simple)
     split = int(len(X) * 0.8)

@@ -4,15 +4,9 @@ import pandas as pd
 import streamlit as st
 
 from src.bridges import returns_matrix
-from src.insights import top_ideas
-from src.portfolio_risk import (
-    calculate_factor_exposures,
-    calculate_risk_metrics,
-    hierarchical_risk_parity,
-    mean_variance_optimization,
-    risk_parity_allocation,
-    style_box_classification,
-)
+from src.grade import suggest_book
+from src.portfolio_risk import calculate_risk_metrics
+from src.screener import apply_filters, filters_from_state
 from src.ui import desk, empty_state, fmt_num, page_header
 
 
@@ -21,60 +15,49 @@ def page() -> None:
     snapshot = d.get("snapshot", pd.DataFrame())
     with_ind = d.get("with_ind", pd.DataFrame())
     page_header(
-        "Portfolio · live board",
+        "Portfolio · liquidity book",
         "Construction",
-        "Factor tilts, then mean-variance / risk-parity on high-conviction names.",
+        "Equal-weight, then cap each name at 8% of one-day turnover and 15% of a 100 Cr book. No optimiser theatre.",
     )
     if snapshot.empty:
         empty_state("No snapshot", "Load market data from the sidebar.")
         return
-    indexed = snapshot.set_index("SYMBOL")
-    expo = calculate_factor_exposures(indexed)
-    styled = style_box_classification(expo)
-    show = styled.reset_index()
-    if "index" in show.columns:
-        show = show.rename(columns={"index": "SYMBOL"})
-    if "SYMBOL" in show.columns:
-        show = show.merge(snapshot[["SYMBOL", "NAME", "SECTOR", "ACCUM_SCORE"]], on="SYMBOL", how="left")
-    st.subheader("Style box")
-    st.dataframe(show.head(40), width="stretch", hide_index=True)
-    ideas = top_ideas(snapshot, n=8)
-    names = ideas["SYMBOL"].tolist() if not ideas.empty else snapshot.nlargest(8, "ACCUM_SCORE")["SYMBOL"].tolist()
+    capital = st.number_input("Book size (₹ Cr)", min_value=1.0, max_value=10_000.0, value=100.0, step=10.0)
+    board = apply_filters(snapshot, filters_from_state(st.session_state.get("filters") or {}))
+    book = suggest_book(board if not board.empty else snapshot, n=8, capital_cr=float(capital))
+    if book.empty:
+        empty_state("No names to size", "Need Act/Watch names with a liquidity cap.")
+        return
+    cash = float(book.attrs.get("cash_weight") or max(0.0, 1.0 - float(book["WEIGHT"].sum())))
+    st.caption(f"Cash {cash:.0%}. Weights are not a live mandate.")
+    st.dataframe(
+        book.drop(columns=["INVALIDATION"], errors="ignore"),
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "WEIGHT": st.column_config.NumberColumn("Weight", format="%.1%"),
+            "SETUP_QUALITY": st.column_config.NumberColumn("Setup", format="%.0f"),
+        },
+    )
+    st.bar_chart(book.set_index("SYMBOL")["WEIGHT"])
+    names = book["SYMBOL"].tolist()
     rets = returns_matrix(with_ind, names)
     if rets.empty or rets.shape[1] < 2:
-        st.warning("Need more overlapping history to optimize.")
+        st.caption("Need overlapping history for a trailing risk snapshot of this book.")
         return
-    mu = rets.mean() * 252
-    cov = rets.cov() * 252
-    mv = mean_variance_optimization(mu, cov)
-    rp = risk_parity_allocation(cov)
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("**Max-Sharpe weights**")
-        w = mv.get("weights") if isinstance(mv, dict) else None
-        if w is not None:
-            wf = pd.Series(w, index=mu.index).sort_values(ascending=False)
-            st.bar_chart(wf)
-            st.caption(f"Sharpe {fmt_num(mv.get('sharpe_ratio'), '{:.2f}')} · vol {fmt_num(mv.get('volatility'), '{:.1%}')}")
-    with c2:
-        st.markdown("**Risk parity**")
-        rw = rp.get("weights") if isinstance(rp, dict) else None
-        if rw is not None:
-            rws = pd.Series(rw, index=mu.index).sort_values(ascending=False)
-            st.bar_chart(rws)
-    try:
-        hrp = hierarchical_risk_parity(rets.dropna(how="any"))
-    except Exception:
-        hrp = {}
-    hw = hrp.get("weights")
-    if hw is not None and "error" not in hrp:
-        st.markdown("**Hierarchical risk parity**")
-        order = hrp.get("asset_order") or list(mu.index)
-        st.bar_chart(pd.Series(hw, index=order).sort_values(ascending=False))
-    eq = rets.mean(axis=1)
-    risk = calculate_risk_metrics(eq)
+    w = book.set_index("SYMBOL")["WEIGHT"]
+    aligned = rets[w.index.intersection(rets.columns)].fillna(0)
+    w = w.reindex(aligned.columns).fillna(0)
+    if w.sum() > 0:
+        w = w / w.sum()
+    port = aligned.dot(w)
+    risk = calculate_risk_metrics(port)
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Equal-weight Sharpe", fmt_num(risk.get("sharpe_ratio"), "{:.2f}"))
+    k1.metric("Trailing Sharpe", fmt_num(risk.get("sharpe_ratio"), "{:.2f}"))
     k2.metric("Sortino", fmt_num(risk.get("sortino_ratio"), "{:.2f}"))
     k3.metric("Max DD", fmt_num(risk.get("max_drawdown"), "{:.1%}"))
-    k4.metric("Win rate", fmt_num(risk.get("win_rate"), "{:.0%}"))
+    k4.metric("Win days", fmt_num(risk.get("win_rate"), "{:.0%}"))
+    st.caption("Risk stats are the historical path of this weight vector on cached closes — not a forecast.")
+    if "INVALIDATION" in book.columns:
+        st.markdown("**Kill switches**")
+        st.dataframe(book[["SYMBOL", "INVALIDATION"]], width="stretch", hide_index=True)

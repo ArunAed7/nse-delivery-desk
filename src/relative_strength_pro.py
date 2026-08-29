@@ -13,13 +13,9 @@ from scipy import stats
 def calculate_rs_rating(stock_returns: pd.Series, benchmark_returns: pd.Series,
                         lookback_days: int = 252) -> float:
     """
-    RS Rating (1-99) - Percentile rank of stock vs market
-    
-    Based on 1-year relative performance
-    99 = top 1% performers
-    1 = bottom 1% performers
-    
-    Returns: RS Rating (1-99)
+    Relative performance vs a proxy series, scaled so 100 = in line with the proxy.
+
+    This is not a 1-99 universe RS Rating.
     """
     # Ensure same length
     min_len = min(len(stock_returns), len(benchmark_returns))
@@ -34,12 +30,7 @@ def calculate_rs_rating(stock_returns: pd.Series, benchmark_returns: pd.Series,
     
     # Get latest relative performance
     latest_rp = relative_performance.iloc[-1]
-    
-    # Convert to percentile rank (simplified - would need cross-sectional data)
-    # In production, compare to all stocks in universe
-    rs_percentile = min(99, max(1, int(latest_rp * 50 + 50)))
-    
-    return rs_percentile
+    return float(latest_rp * 100)
 
 
 def rs_vs_index(stock_close: pd.Series, index_close: pd.Series,
@@ -384,8 +375,10 @@ def generate_rs_report(ticker: str, stock_data: pd.DataFrame,
         report['peer_comparison'] = peer_comp.to_dict('records')[0]
     
     # Overall RS grade
+    rel = float(report["rs_rating"] or 100)
+    rating_pts = min(99, max(1, int(50 + (rel - 100))))
     rs_grade_score = (
-        report['rs_rating'] * 0.40 +
+        rating_pts * 0.40 +
         report['rs_momentum_score'] * 0.30 +
         (100 if report['stage_analysis']['is_stage_2'] else 30) * 0.20 +
         (100 if report['recent_breakout'] else 50) * 0.10

@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import pandas as pd
 
 from src.nse_api import nse_json, records_to_frame
-from src.nse_data import CACHE_DIR
+from src.nse_data import CACHE_DIR, persist_parquet
 from src.sectors import attach_sectors, normalize_symbol
 from src.sentiment import annotate_headlines
 
@@ -117,6 +117,5 @@ def refresh_announcements(from_date: date, to_date: date) -> pd.DataFrame:
         else:
             news = news.drop_duplicates(subset=["SYMBOL", "ANN_DATE", "HEADLINE"], keep="first")
     news = attach_sectors(news)
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    news.to_parquet(ANN_PATH, index=False)
+    news, _status = persist_parquet(ANN_PATH, news)
     return news

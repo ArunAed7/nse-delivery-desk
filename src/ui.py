@@ -152,7 +152,10 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
 
 
 def inject_css() -> None:
+    if st.session_state.get("_desk_css"):
+        return
     st.markdown(DESK_CSS, unsafe_allow_html=True)
+    st.session_state["_desk_css"] = True
 
 
 def brand_sidebar() -> None:
@@ -215,8 +218,14 @@ def tape_roll(ideas: pd.DataFrame) -> None:
     bits = []
     for _, row in ideas.iterrows():
         chg = row.get("CHG_5D")
-        cls = "up" if pd.notna(chg) and float(chg) >= 0 else "dn"
-        chg_s = fmt_num(chg, "{:+.1f}%")
+        flag = row.get("PRICE_UNRELIABLE", False)
+        unreliable = False if pd.isna(flag) else bool(flag)
+        if unreliable:
+            chg_s = "5D n/a"
+            cls = "dn"
+        else:
+            cls = "up" if pd.notna(chg) and float(chg) >= 0 else "dn"
+            chg_s = fmt_num(chg, "{:+.1f}%")
         bits.append(
             f"<b>{html.escape(str(row['SYMBOL']))}</b> "
             f"<span class='{cls}'>{html.escape(chg_s)}</span> "
@@ -230,16 +239,19 @@ def tape_roll(ideas: pd.DataFrame) -> None:
 
 
 def idea_card_html(row: pd.Series) -> str:
+    flag = row.get("PRICE_UNRELIABLE", False)
+    unreliable = False if pd.isna(flag) else bool(flag)
     chg = row.get("CHG_5D")
     chg_cls = "up" if pd.notna(chg) and float(chg) >= 0 else "dn"
+    chg_txt = "n/a" if unreliable else fmt_num(chg, "{:+.1f}%")
     return (
         '<div class="idea">'
         f'<div class="sym">{html.escape(str(row.get("SYMBOL") or ""))}</div>'
         f'<div class="nm">{html.escape(str(row.get("NAME") or "")[:52])}</div>'
         '<div class="row">'
-        f'<div class="cell"><div class="lbl">Tape</div><div class="val">{html.escape(fmt_num(row.get("ACCUM_SCORE"), "{:.0f}"))}</div></div>'
-        f'<div class="cell"><div class="lbl">Heat</div><div class="val">{html.escape(fmt_num(row.get("HEAT"), "{:.0f}"))}</div></div>'
-        f'<div class="cell"><div class="lbl">5D</div><div class="val {chg_cls}">{html.escape(fmt_num(chg, "{:+.1f}%"))}</div></div>'
+        f'<div class="cell"><div class="lbl">Setup</div><div class="val">{html.escape(fmt_num(row.get("SETUP_QUALITY"), "{:.0f}"))}</div></div>'
+        f'<div class="cell"><div class="lbl">RS</div><div class="val">{html.escape(fmt_num(row.get("RS_20D_PCT"), "{:.0f}"))}</div></div>'
+        f'<div class="cell"><div class="lbl">5D</div><div class="val {chg_cls}">{html.escape(chg_txt)}</div></div>'
         "</div></div>"
     )
 

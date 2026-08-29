@@ -4,12 +4,40 @@ import json
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = ROOT / "data" / "cache"
 BHAV_PREFIX = "bhav_"
+IST = ZoneInfo("Asia/Kolkata")
+
+
+def nse_today() -> date:
+    return datetime.now(IST).date()
+
+
+def last_session_date(as_of: date | None = None) -> date:
+    """Most recent weekday in IST. Holidays still look like sessions until a fetch fails."""
+    cursor = as_of or nse_today()
+    while cursor.weekday() >= 5:
+        cursor -= timedelta(days=1)
+    return cursor
+
+
+def persist_parquet(path: Path, frame: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+    """Write non-empty frames only. Keep the last good cache on a failed/empty fetch."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if frame is not None and not frame.empty:
+        frame.to_parquet(path, index=False)
+        return frame, "wrote"
+    if path.exists():
+        return pd.read_parquet(path), "kept"
+    if frame is not None:
+        frame.to_parquet(path, index=False)
+        return frame, "empty"
+    return pd.DataFrame(), "empty"
 
 NUMERIC_COLS = [
     "PREV_CLOSE",
@@ -150,7 +178,7 @@ def refresh_history(
     fetched = 0
     skipped = 0
     failed: list[str] = []
-    cursor = date.today()
+    cursor = nse_today()
     attempts = 0
     max_attempts = trading_days * 3 + 40
 
@@ -199,12 +227,13 @@ def latest_cached_date() -> date | None:
 
 
 def cache_fingerprint() -> str:
-    last = latest_cached_date()
-    if last is None:
+    dates = cached_bhav_dates()
+    if not dates:
         return "none"
-    path = bhav_path(last)
-    mtime = path.stat().st_mtime if path.exists() else 0
-    return f"{last.isoformat()}|{int(mtime)}"
+    last = dates[-1]
+    mtimes = [bhav_path(d).stat().st_mtime for d in dates if bhav_path(d).exists()]
+    stamp = int(max(mtimes)) if mtimes else 0
+    return f"{len(dates)}|{last.isoformat()}|{stamp}"
 
 
 AUTO_STATE_PATH = CACHE_DIR / "auto_refresh.json"
@@ -227,15 +256,15 @@ def _write_auto_state(payload: dict) -> None:
 
 
 def cache_needs_latest(as_of: date | None = None) -> bool:
-    as_of = as_of or date.today()
+    expected = last_session_date(as_of)
     last = latest_cached_date()
     if last is None:
         return True
-    return last < as_of
+    return last < expected
 
 
 def should_auto_refresh(as_of: date | None = None, retry_minutes: int = AUTO_RETRY_MINUTES) -> bool:
-    as_of = as_of or date.today()
+    as_of = as_of or nse_today()
     if not cache_needs_latest(as_of):
         return False
     state = _auto_state()
@@ -248,37 +277,40 @@ def should_auto_refresh(as_of: date | None = None, retry_minutes: int = AUTO_RET
         last_try = datetime.fromisoformat(stamp)
     except ValueError:
         return True
-    return datetime.now() - last_try >= timedelta(minutes=retry_minutes)
+    now = datetime.now(IST).replace(tzinfo=None)
+    try_at = last_try.replace(tzinfo=None) if last_try.tzinfo else last_try
+    return now - try_at >= timedelta(minutes=retry_minutes)
 
 
-def refresh_latest(max_calendar_days: int = 10, pause_s: float = 0.3) -> dict:
-    """Fill missing bhav copies from today backward until we hit an already-cached session."""
+def refresh_latest(max_weekdays: int = 15, pause_s: float = 0.3) -> dict:
+    """Fetch every missing weekday bhav in the lookback. Do not stop after the first hit."""
     fetched: list[str] = []
     missing: list[str] = []
-    cursor = date.today()
+    cursor = nse_today()
     checked = 0
-    while checked < max_calendar_days:
+    while checked < max_weekdays:
         if cursor.weekday() >= 5:
             cursor -= timedelta(days=1)
             continue
         checked += 1
         cached = load_cached_bhav(cursor)
         if cached is not None and not cached.empty:
-            break
+            cursor -= timedelta(days=1)
+            continue
         frame = fetch_bhav(cursor)
         time.sleep(pause_s)
         if frame is None or frame.empty:
             missing.append(cursor.isoformat())
-            cursor -= timedelta(days=1)
-            continue
-        save_bhav(frame, cursor)
-        fetched.append(cursor.isoformat())
-        break
+        else:
+            save_bhav(frame, cursor)
+            fetched.append(cursor.isoformat())
+        cursor -= timedelta(days=1)
     last = latest_cached_date()
+    expected = last_session_date()
     _write_auto_state(
         {
-            "attempted_date": date.today().isoformat(),
-            "last_attempt_iso": datetime.now().isoformat(timespec="seconds"),
+            "attempted_date": nse_today().isoformat(),
+            "last_attempt_iso": datetime.now(IST).isoformat(timespec="seconds"),
             "fetched": fetched,
             "missing": missing,
             "data_through": last.isoformat() if last else None,
@@ -288,18 +320,19 @@ def refresh_latest(max_calendar_days: int = 10, pause_s: float = 0.3) -> dict:
         "fetched": fetched,
         "missing": missing,
         "last": last.isoformat() if last else None,
-        "current": last is not None and last >= date.today(),
+        "current": last is not None and last >= expected,
     }
 
 
 def auto_update_if_stale() -> dict:
     if not should_auto_refresh():
         last = latest_cached_date()
+        expected = last_session_date()
         return {
             "ran": False,
             "fetched": [],
             "last": last.isoformat() if last else None,
-            "current": last is not None and last >= date.today(),
+            "current": last is not None and last >= expected,
         }
     result = refresh_latest()
     result["ran"] = True

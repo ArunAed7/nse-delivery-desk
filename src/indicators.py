@@ -90,4 +90,14 @@ def latest_snapshot(history_with_indicators: pd.DataFrame) -> pd.DataFrame:
     if history_with_indicators.empty:
         return history_with_indicators
     df = history_with_indicators.sort_values(["SYMBOL", "SERIES", "TRADE_DATE"])
-    return df.groupby(["SYMBOL", "SERIES"], as_index=False).tail(1).reset_index(drop=True)
+    snap = df.groupby(["SYMBOL", "SERIES"], as_index=False).tail(1).reset_index(drop=True)
+    counts = df.groupby(["SYMBOL", "SERIES"]).size().rename("SESSIONS")
+    snap = snap.merge(counts.reset_index(), on=["SYMBOL", "SERIES"], how="left")
+    chg = (
+        pd.to_numeric(snap["CHG_5D"], errors="coerce")
+        if "CHG_5D" in snap.columns
+        else pd.Series(np.nan, index=snap.index)
+    )
+    sessions = pd.to_numeric(snap.get("SESSIONS"), errors="coerce").fillna(0)
+    snap["PRICE_UNRELIABLE"] = (chg.abs() > 40) | (sessions < 8)
+    return snap
