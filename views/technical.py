@@ -5,17 +5,19 @@ import streamlit as st
 
 from src.desk import snapshot_row, symbol_history
 from src.institutional_view import analyze_symbol, market_close_proxy
-from src.ui import build_price_chart, desk, fmt_num, inject_css, pick_symbol
+from src.ui import build_price_chart, desk, empty_state, fmt_num, page_header, pick_symbol
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     symbol = pick_symbol()
-    st.title("Technical Pro")
-    st.caption("Connors RSI, MACD, ADX, CMF, ATR stops, Bollinger/Keltner, vol regime — on cached NSE prints.")
+    page_header(
+        "Research · NSE prints",
+        "Technical Pro",
+        "Connors RSI, MACD, ADX, CMF, ATR stops, Bollinger/Keltner, vol regime — on cached sessions.",
+    )
     if not symbol:
-        st.info("Pin a stock from Jump or the screener.")
+        empty_state("Pin a stock", "Jump, Search, or the Command pin buttons.")
         return
     hist = symbol_history(d, symbol)
     row = snapshot_row(d, symbol)

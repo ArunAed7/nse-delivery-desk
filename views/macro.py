@@ -6,16 +6,18 @@ import streamlit as st
 from src.bridges import deals_daily_institution_flow
 from src.institutional_view import market_close_proxy, market_regime, sector_rotation
 from src.macro_liquidity import LiquidityFlowAnalyzer, MacroRegimeDetector, analyze_macro_liquidity
-from src.ui import desk, inject_css
+from src.ui import desk, page_header
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     snapshot = d.get("snapshot", pd.DataFrame())
     history = d.get("history", pd.DataFrame())
-    st.title("Regime & liquidity")
-    st.caption("Market-median close vs 50/200DMA. Flow series is disclosed bulk/block tagged FPI vs MF/insurance/bank — not official stock-wise FII/DII.")
+    page_header(
+        "Macro · disclosed tags only",
+        "Regime & liquidity",
+        "Market-median close vs 50/200DMA. Flow is bulk/block tagged FPI vs MF/insurance/bank — not official stock-wise FII/DII.",
+    )
     px = market_close_proxy(history)
     index_df = pd.DataFrame({"Close": px}) if not px.empty else pd.DataFrame()
     flow = deals_daily_institution_flow(d.get("deals"))

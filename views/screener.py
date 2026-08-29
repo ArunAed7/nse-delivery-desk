@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from src.screener import ScreenFilters, apply_filters
-from src.ui import desk, inject_css, signal_badge
+from src.ui import desk, empty_state, page_header, signal_badge
 
 BOARD_COLS = [
     "SYMBOL", "NAME", "SECTOR", "SIGNAL", "ACCUM_SCORE", "HEAT", "CLOSE_PRICE",
@@ -15,16 +15,18 @@ BOARD_COLS = [
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     snapshot = d.get("snapshot", pd.DataFrame())
     f = st.session_state.get("filters") or {}
     series = d.get("series") or ["EQ", "BE"]
+    page_header(
+        "Markets · mandate",
+        "Screener",
+        "Delivery, volume, trend and disclosed-flow heat. Select a row to pin the focus stock.",
+    )
     if snapshot.empty:
-        st.info("No snapshot yet.")
+        empty_state("No snapshot yet", "Refresh market data from the sidebar.")
         return
-    st.title("Screener")
-    st.caption("Delivery, volume, trend and disclosed-flow heat. Select a row to pin the focus stock.")
     wanted = {s.upper() for s in series}
     board = snapshot[snapshot["SERIES"].isin(wanted)].copy()
     search = st.session_state.get("stock_search_query") or ""

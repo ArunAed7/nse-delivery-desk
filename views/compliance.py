@@ -5,19 +5,21 @@ import streamlit as st
 
 from src.compliance_reporting import PreTradeCompliance, SEBIReporter
 from src.insights import top_ideas
-from src.ui import desk, inject_css, pick_symbol
+from src.ui import desk, empty_state, page_header, pick_symbol
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     snapshot = d.get("snapshot", pd.DataFrame())
     symbol = pick_symbol()
-    st.title("Compliance")
-    st.caption("Pre-trade mandate check on a hypothetical order. Sample book is equal-weight high-conviction names — not a live fund.")
+    page_header(
+        "Portfolio · mandate",
+        "Compliance",
+        "Pre-trade check on a hypothetical order. Sample book is equal-weight high-conviction names — not a live fund.",
+    )
     ideas = top_ideas(snapshot, n=8) if not snapshot.empty else snapshot
     if ideas.empty:
-        st.info("No names to seed a book.")
+        empty_state("No names to seed a book", "Need high-conviction names on the board.")
         return
     aum = st.number_input("AUM (₹)", 1_000_000.0, 10_000_000_000.0, 100_000_000.0, step=1_000_000.0)
     n = max(len(ideas), 1)

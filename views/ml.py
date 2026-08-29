@@ -7,17 +7,19 @@ from src.announcements import load_cached_announcements
 from src.bridges import price_frame_for_ml
 from src.desk import symbol_history
 from src.ml_models import SentimentAnalyzer, run_ml_pipeline
-from src.ui import desk, fmt_num, inject_css, pick_symbol
+from src.ui import desk, empty_state, fmt_num, page_header, pick_symbol
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     symbol = pick_symbol()
-    st.title("ML forecast")
-    st.caption("Gradient boosting on lagged returns/RSI from NSE history. Directional accuracy on a hold-out slice — not a recommendation.")
+    page_header(
+        "Research · hold-out slice",
+        "ML forecast",
+        "Gradient boosting on lagged returns/RSI. Directional accuracy only — not a recommendation.",
+    )
     if not symbol:
-        st.info("Pin a stock first.")
+        empty_state("Pin a stock first", "Need a name with a long lookback (180/365).")
         return
     hist = symbol_history(d, symbol)
     st.subheader(symbol)

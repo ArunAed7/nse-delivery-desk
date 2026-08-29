@@ -6,17 +6,19 @@ import streamlit as st
 from src.backtesting_engine import BacktestEngine, simple_momentum_strategy
 from src.bridges import backtest_close_frame
 from src.desk import symbol_history
-from src.ui import desk, fmt_num, inject_css, pick_symbol
+from src.ui import desk, empty_state, fmt_num, page_header, pick_symbol
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     symbol = pick_symbol()
-    st.title("Backtest")
-    st.caption("Price > 20DMA long-only on cached NSE closes. Costs and slippage applied. Not a live signal.")
+    page_header(
+        "Portfolio · long-only MA",
+        "Backtest",
+        "Price > 20DMA on cached NSE closes. Costs and slippage applied. Not a live signal.",
+    )
     if not symbol:
-        st.info("Pin a stock first.")
+        empty_state("Pin a stock first", "Jump to a liquid name, then run the engine.")
         return
     hist = symbol_history(d, symbol)
     if hist.empty or len(hist) < 40:

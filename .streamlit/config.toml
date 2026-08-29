@@ -1,41 +1,41 @@
-# Professional financial dashboard theme
+# Amber terminal — ink ground, copper accent
 [theme]
 base = "dark"
-primaryColor = "#60A5FA"
-backgroundColor = "#0F172A"
-secondaryBackgroundColor = "#1E293B"
-codeBackgroundColor = "#1E293B"
-textColor = "#F1F5F9"
-linkColor = "#60A5FA"
-borderColor = "#334155"
-codeTextColor = "#CBD5E1"
+primaryColor = "#E8B86D"
+backgroundColor = "#07090C"
+secondaryBackgroundColor = "#12161C"
+codeBackgroundColor = "#0C1016"
+textColor = "#EDE8DF"
+linkColor = "#E8B86D"
+borderColor = "#2A241C"
+codeTextColor = "#C4B8A8"
 showWidgetBorder = true
 showSidebarBorder = true
-baseRadius = "8px"
-buttonRadius = "8px"
-font = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-headingFont = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap"
-codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+baseRadius = "10px"
+buttonRadius = "10px"
+font = "'IBM Plex Sans':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+headingFont = "'Outfit':https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
+codeFont = "'IBM Plex Mono':https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"
 baseFontSize = 14
-headingFontSizes = ["30px", "22px", "18px", "16px", "14px", "12px"]
+headingFontSizes = ["28px", "20px", "16px", "15px", "14px", "12px"]
 headingFontWeights = [700, 600, 600, 600, 500, 500]
 linkUnderline = false
-greenColor = "#34D399"
-redColor = "#F87171"
-yellowColor = "#FBBF24"
-orangeColor = "#FB923C"
-blueColor = "#60A5FA"
-violetColor = "#A78BFA"
-grayColor = "#94A3B8"
-dataframeBorderColor = "#334155"
-dataframeHeaderBackgroundColor = "#1E293B"
+greenColor = "#3DDC97"
+redColor = "#FF6B7A"
+yellowColor = "#E8B86D"
+orangeColor = "#F0A05A"
+blueColor = "#7DD3FC"
+violetColor = "#C4B5FD"
+grayColor = "#8A8175"
+dataframeBorderColor = "#2A241C"
+dataframeHeaderBackgroundColor = "#12161C"
 
 [theme.sidebar]
-backgroundColor = "#0F172A"
-secondaryBackgroundColor = "#1E293B"
-textColor = "#F1F5F9"
-borderColor = "#334155"
-primaryColor = "#60A5FA"
+backgroundColor = "#050608"
+secondaryBackgroundColor = "#12161C"
+textColor = "#EDE8DF"
+borderColor = "#2A241C"
+primaryColor = "#E8B86D"
 
 [server]
 headless = true

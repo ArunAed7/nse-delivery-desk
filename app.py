@@ -7,6 +7,7 @@ import streamlit as st
 
 from src.desk import assemble_desk
 from src.fundamentals import refresh_market_caps, refresh_pe_ratios
+from src.ui import brand_sidebar, focus_strip, inject_css
 from src.nse_data import auto_update_if_stale, latest_cached_date, refresh_history
 from src.sectors import load_sectors
 from src.trackers import FLOW_WINDOW_DAYS, refresh_institutional, should_refresh_institutional
@@ -31,13 +32,14 @@ from views import (
 
 st.set_page_config(
     page_title="NSE delivery desk",
-    page_icon=":material/query_stats:",
+    page_icon=":material/candlestick_chart:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+inject_css()
 
 with st.sidebar:
-    st.markdown("### :material/query_stats: Delivery desk")
+    brand_sidebar()
     st.caption("Delivery, volume and disclosed flow — not named FII/DII.")
     lookback = st.selectbox("Lookback", [30, 90, 180, 365], index=1, help="Trading sessions for averages. 3M needs ~63 days.")
     series = st.multiselect(
@@ -183,7 +185,7 @@ with st.sidebar:
             st.session_state["focus_symbol"] = str(hit.iloc[0]["SYMBOL"])
     pinned = st.session_state.get("focus_symbol")
     if pinned:
-        st.badge(str(pinned), color="blue")
+        st.badge(str(pinned), color="orange")
 
 st.session_state["desk"] = desk
 st.session_state["filters"] = {
@@ -205,6 +207,7 @@ st.session_state["filters"] = {
     "preset": preset,
     "picked_sectors": picked_sectors,
 }
+focus_strip()
 
 pg = st.navigation(
     {

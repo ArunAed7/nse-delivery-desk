@@ -5,18 +5,20 @@ import streamlit as st
 
 from src.desk import snapshot_row, symbol_history
 from src.institutional_view import analyze_symbol, market_close_proxy
-from src.ui import desk, fmt_num, inject_css, pick_symbol
+from src.ui import desk, empty_state, fmt_num, page_header, pick_symbol
 
 
 def page() -> None:
-    inject_css()
     d = desk()
     symbol = pick_symbol()
     snapshot = d.get("snapshot", pd.DataFrame())
-    st.title("Relative strength")
-    st.caption("RS rating vs market median, Weinstein stage, breakouts. Universe ranking uses 20D change as a proxy.")
+    page_header(
+        "Research · vs market median",
+        "Relative strength",
+        "RS grade, Weinstein stage, breakouts. Universe ranking uses 20D change as a proxy.",
+    )
     if snapshot.empty:
-        st.info("No snapshot.")
+        empty_state("No snapshot", "Refresh market data first.")
         return
     if symbol:
         hist = symbol_history(d, symbol)
