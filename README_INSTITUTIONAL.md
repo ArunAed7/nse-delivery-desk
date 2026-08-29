@@ -75,11 +75,10 @@ Transformed from a retail screening tool into a **Bloomberg/FactSet-class termin
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies
-pip install pandas numpy scipy streamlit scikit-learn
+# Live desk (amber terminal, all modules)
+streamlit run app.py
 
-# Run the institutional app
-streamlit run app_institutional.py
+# app_institutional.py is a synthetic demo only — do not use it as the product UI
 ```
 
 ---

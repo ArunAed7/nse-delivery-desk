@@ -23,9 +23,9 @@ def page() -> None:
     pulse = d.get("pulse", pd.Series(dtype=float))
     last_dt = d.get("last_dt")
     page_header(
-        "Markets · live cache",
+        "Markets · amber terminal",
         "Command",
-        "Delivery tape, disclosed-flow heat, and regime on one board. Pin a name to open Thesis and research.",
+        "Delivery tape, disclosed-flow heat, and regime on one board. Pin a name to open Thesis and research. If this page still has blue tabs named Opportunity board, you are on an old process — stop Streamlit and restart app.py.",
     )
     if snapshot.empty:
         empty_state("No session in cache", "Use Refresh market data in the sidebar to pull NSE bhav copies.")
