@@ -141,6 +141,18 @@ def thesis_for_row(row: pd.Series, as_of: date | None = None) -> dict:
     if pd.notna(pe):
         vs = f", {float(pe_vs):.2f}× universe median PE" if pd.notna(pe_vs) else ""
         why.append(f"NSE PE {float(pe):.1f}{vs}. Delivery strength does not replace valuation.")
+    if pd.notna(row.get("SETUP_QUALITY")):
+        why.append(
+            f"Setup quality {float(row['SETUP_QUALITY']):.0f}/100 "
+            f"(conviction {row.get('CONVICTION')})."
+        )
+    if pd.notna(row.get("RS_20D_PCT")):
+        why.append(f"20D relative strength percentile among investable names: {float(row['RS_20D_PCT']):.0f}.")
+    if pd.notna(row.get("SIZE_CAP_CR")) and float(row.get("SIZE_CAP_CR") or 0) > 0:
+        why.append(
+            f"Liquidity cap ≈ ₹{float(row['SIZE_CAP_CR']):.2f} Cr "
+            "(8% of one-day turnover, 0.5% of mcap if known)."
+        )
     if deals:
         why.append("Bulk/block deals printed in the lookback — extra evidence of large-lot activity, still not named FII/DII.")
 
@@ -187,7 +199,20 @@ def thesis_for_row(row: pd.Series, as_of: date | None = None) -> dict:
             if pd.notna(pe)
             else "n/a"
         ),
-        "Large deals": "Pass" if deals else "n/a",
+        "Setup quality": (
+            "Pass"
+            if pd.notna(row.get("SETUP_QUALITY")) and float(row["SETUP_QUALITY"]) >= 70
+            else "Watch"
+            if pd.notna(row.get("SETUP_QUALITY")) and float(row["SETUP_QUALITY"]) >= 55
+            else "Fail"
+        ),
+        "RS vs liquid universe": (
+            "Pass"
+            if pd.notna(row.get("RS_20D_PCT")) and float(row["RS_20D_PCT"]) >= 60
+            else "Watch"
+            if pd.notna(row.get("RS_20D_PCT"))
+            else "n/a"
+        ),
     }
 
     badge = {
@@ -229,4 +254,11 @@ def top_ideas(df: pd.DataFrame, n: int = 6) -> pd.DataFrame:
         prefer = prefer[~prefer["PRICE_UNRELIABLE"].fillna(False)]
     if "SESSIONS" in prefer.columns:
         prefer = prefer[pd.to_numeric(prefer["SESSIONS"], errors="coerce").fillna(0) >= 8]
-    return prefer.sort_values(["ACCUM_SCORE", "DELIV_VALUE_CR"], ascending=False).head(n)
+    if "CONVICTION" in prefer.columns:
+        act = prefer[prefer["CONVICTION"].eq("Act")]
+        if not act.empty:
+            prefer = act
+        elif (prefer["CONVICTION"] == "Watch").any():
+            prefer = prefer[prefer["CONVICTION"].isin(["Act", "Watch"])]
+    keys = [c for c in ["SETUP_QUALITY", "ACCUM_SCORE", "DELIV_VALUE_CR"] if c in prefer.columns]
+    return prefer.sort_values(keys, ascending=False, na_position="last").head(n)

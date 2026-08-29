@@ -42,43 +42,19 @@ class DerivativesIntelligence:
         return round(total_put_oi / max(total_call_oi, 1), 2)
     
     def identify_max_pain(self, spot_price: float) -> float:
-        """
-        Calculate Max Pain strike (strike where option buyers lose most money).
-        Often acts as a magnet for expiry.
-        """
+        from src.grade import max_pain_strike
+
         if self.oi_data is None:
             return spot_price
-            
-        self.oi_data['Total_Value'] = (
-            np.maximum(0, self.oi_data['Strike'] - spot_price) * self.oi_data['PE_OI'] +
-            np.maximum(0, spot_price - self.oi_data['Strike']) * self.oi_data['CE_OI']
-        )
-        
-        min_loss_idx = self.oi_data['Total_Value'].idxmin()
-        return self.oi_data.loc[min_loss_idx, 'Strike']
-    
+        pain = max_pain_strike(self.oi_data)
+        return float(pain) if pd.notna(pain) else spot_price
+
     def detect_oi_buildup(self, threshold: float = 10.0) -> pd.DataFrame:
-        """
-        Detect significant OI buildup (>threshold%) to identify fresh longs/shorts.
-        Returns: DataFrame with Signal (Long Buildup, Short Buildup, Short Covering, Long Unwinding)
-        """
+        from src.grade import oi_buildup
+
         if self.oi_data is None:
             return pd.DataFrame()
-            
-        df = self.oi_data.copy()
-        
-        # Logic for Calls
-        df['CE_Signal'] = 'Neutral'
-        df.loc[(df['CE_OI'] > 0) & (df['CE_Chng'] > threshold), 'CE_Signal'] = 'Short Buildup' # Writers adding
-        df.loc[(df['CE_OI'] > 0) & (df['CE_Chng'] < -threshold), 'CE_Signal'] = 'Short Covering' # Writers exiting
-        df.loc[(df['CE_Chng'] > threshold) & (df['LTP'].pct_change() > 0.02), 'CE_Signal'] = 'Long Buildup' # Buyers adding (rare in options, usually synthetic)
-        
-        # Logic for Puts
-        df['PE_Signal'] = 'Neutral'
-        df.loc[(df['PE_OI'] > 0) & (df['PE_Chng'] > threshold), 'PE_Signal'] = 'Long Buildup' # Buyers adding (Bullish)
-        df.loc[(df['PE_OI'] > 0) & (df['PE_Chng'] < -threshold), 'PE_Signal'] = 'Long Unwinding' # Buyers exiting
-        
-        return df[['Strike', 'CE_Signal', 'PE_Signal', 'CE_Chng', 'PE_Chng']]
+        return oi_buildup(self.oi_data, pct=max(threshold / 100.0, 0.05))
     
     def calculate_iv_rank(self, current_iv: float, iv_52w_high: float, iv_52w_low: float) -> float:
         """

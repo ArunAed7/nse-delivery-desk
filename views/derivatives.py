@@ -15,7 +15,7 @@ def page() -> None:
     page_header(
         "Research · F&O",
         "Derivatives",
-        "Live NSE option chain → PCR and OI. The strike labelled max pain is an intrinsic-vs-spot shortcut, not a full expiry max-pain solver.",
+        "Live NSE option chain. PCR is put/call OI. Max pain iterates every strike as a candidate settlement. OI change is vs that strike's OI, not LTP across the chain.",
     )
     if not symbol:
         empty_state("Pin an F&O name", "Try RELIANCE or INFY from Jump.")
@@ -40,8 +40,8 @@ def page() -> None:
         c1.metric("Spot", fmt_num(spot, "{:.2f}"))
         c2.metric("PCR (OI)", fmt_num(pcr_oi, "{:.2f}"))
         c3.metric("PCR (vol)", fmt_num(pcr_vol, "{:.2f}"))
-        c4.metric("Spot-pain shortcut", fmt_num(pain, "{:.0f}"))
-        st.caption("Not a true max-pain expiry calculation.")
+        c4.metric("Max pain", fmt_num(pain, "{:.0f}"))
+        st.caption("Writer-loss minimising expiry strike from the current chain. Not a price target.")
         st.dataframe(oi.sort_values("Strike"), width="stretch", hide_index=True, height=360)
         if buildup is not None and not buildup.empty:
             st.subheader("OI buildup")

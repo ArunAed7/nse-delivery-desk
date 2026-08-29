@@ -29,6 +29,32 @@ class ScreenFilters:
     sectors: tuple[str, ...] | None = None
 
 
+def filters_from_state(f: dict | None, search: str = "") -> ScreenFilters:
+    f = f or {}
+    return ScreenFilters(
+        search=search or "",
+        min_deliv_per=None if f.get("min_deliv", 0) <= 0 else float(f["min_deliv"]),
+        max_deliv_per=None if f.get("max_deliv", 100) >= 100 else float(f["max_deliv"]),
+        min_deliv_vs_avg=None if f.get("min_deliv_vs", 0) <= 0 else float(f["min_deliv_vs"]),
+        min_vol_vs_avg=None if f.get("min_vol_vs", 0) <= 0 else float(f["min_vol_vs"]),
+        min_deliv_qty_vs_avg=None if f.get("min_dq_vs", 0) <= 0 else float(f["min_dq_vs"]),
+        min_turnover=None if f.get("min_turn", 0) <= 0 else float(f["min_turn"]),
+        min_market_cap_cr=None if f.get("min_mcap", 0) <= 0 else float(f["min_mcap"]),
+        rsi_min=None if f.get("rsi", (0, 100))[0] <= 0 else float(f["rsi"][0]),
+        rsi_max=None if f.get("rsi", (0, 100))[1] >= 100 else float(f["rsi"][1]),
+        min_chg_5d=None if f.get("chg5", (-50, 50))[0] <= -50 else float(f["chg5"][0]),
+        max_chg_5d=None if f.get("chg5", (-50, 50))[1] >= 50 else float(f["chg5"][1]),
+        above_sma20=bool(f.get("above_sma20")),
+        above_sma50=bool(f.get("above_sma50")),
+        sma20_gt_sma50=bool(f.get("sma_cross")),
+        bulk_or_block_only=bool(f.get("deals_only")),
+        investable_only=bool(f.get("investable_only", True)),
+        signal=f.get("signal_filter") or "All",
+        preset=f.get("preset") or "None",
+        sectors=tuple(f["picked_sectors"]) if f.get("picked_sectors") else None,
+    )
+
+
 def apply_preset(filters: ScreenFilters) -> ScreenFilters:
     preset = filters.preset
     if preset == "Delivery accumulation":

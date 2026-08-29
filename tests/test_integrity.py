@@ -118,6 +118,48 @@ def test_ml_alignment() -> None:
     assert "model_accuracy" in out
 
 
+def test_max_pain_and_setup() -> None:
+    from src.grade import enrich_snapshot, max_pain_strike, suggest_book
+
+    oi = pd.DataFrame(
+        {
+            "Strike": [90, 100, 110],
+            "CE_OI": [10, 50, 10],
+            "PE_OI": [10, 50, 10],
+        }
+    )
+    assert max_pain_strike(oi) == 100
+    snap = pd.DataFrame(
+        {
+            "SYMBOL": [f"S{i}" for i in range(8)],
+            "SERIES": ["EQ"] * 8,
+            "INVESTABLE": [True] * 8,
+            "PRICE_UNRELIABLE": [False] * 8,
+            "DELIV_PER": [60] * 8,
+            "DELIV_VS_AVG": [1.2] * 8,
+            "VOL_VS_AVG": [1.4] * 8,
+            "RSI_14": [55] * 8,
+            "HIGH_DELIV_STREAK": [4] * 8,
+            "TURNOVER_CR": [50] * 8,
+            "MARKET_CAP_CR": [10_000] * 8,
+            "ABOVE_SMA20": [True] * 8,
+            "HAS_DEAL": [False] * 8,
+            "SIGNAL": ["Strong accumulation"] * 8,
+            "CHG_20D": [1, 2, 3, 4, 5, 6, 7, 8],
+            "ACCUM_SCORE": [80] * 8,
+            "SECTOR": ["Finance"] * 8,
+            "PE": [20] * 8,
+        }
+    )
+    out = enrich_snapshot(snap)
+    assert (out["SETUP_QUALITY"] >= 70).all()
+    assert out["RS_20D_PCT"].between(1, 99).all()
+    assert (out["CONVICTION"] == "Act").all()
+    book = suggest_book(out, n=4, capital_cr=100)
+    assert not book.empty
+    assert float(book["WEIGHT"].sum()) <= 1.01
+
+
 if __name__ == "__main__":
     test_weekend_session_date()
     test_persist_keeps_last_good()
@@ -127,4 +169,5 @@ if __name__ == "__main__":
     test_yahoo_incomplete_flag()
     test_deals_flow_no_sip()
     test_ml_alignment()
+    test_max_pain_and_setup()
     print("integrity tests ok")

@@ -7,6 +7,7 @@ import streamlit as st
 
 from src.deals import deal_flags, load_cached_deals
 from src.fundamentals import load_cached_market_caps, load_cached_pe
+from src.grade import enrich_snapshot
 from src.indicators import add_indicators, latest_snapshot
 from src.insights import classify_snapshot, market_pulse
 from src.nse_data import cache_fingerprint, latest_cached_date, load_history
@@ -102,6 +103,7 @@ def assemble_desk(lookback: int, series: list[str]) -> dict:
         snapshot["ACCUM_SCORE"] = snapshot["ACCUM_SCORE"].fillna(0) + snapshot["HAS_DEAL"].astype(float) * 8
         snapshot["ACCUM_SCORE"] = snapshot["ACCUM_SCORE"].clip(upper=100)
     snapshot = classify_snapshot(snapshot)
+    snapshot = enrich_snapshot(snapshot)
     flow_book = build_flow_book(snapshot, as_of=last_dt)
     keep = [c for c in FLOW_COLS if c in flow_book.columns]
     if not flow_book.empty and keep:

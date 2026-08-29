@@ -40,7 +40,7 @@ inject_css()
 
 with st.sidebar:
     brand_sidebar()
-    st.caption("Delivery, volume and disclosed flow — not named FII/DII. Browser tab should read **NSE desk · Amber**. If it does not, this Streamlit process is stale: stop it and run `streamlit run app.py` again.")
+    st.caption("Delivery, volume and disclosed flow — not named FII/DII. Setup quality is a transparent tape score, not a filing-based rating.")
     lookback = st.selectbox("Lookback", [30, 90, 180, 365], index=1, help="Trading sessions for averages. 3M needs ~63 days.")
     series = st.multiselect(
         "Series",

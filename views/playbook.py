@@ -9,15 +9,33 @@ def page() -> None:
     page_header(
         "Markets · playbook",
         "How to decide",
-        "Read the tape, then the business. High delivery % only matters if the stock is liquid and volume confirms.",
+        "This desk is a delivery and disclosed-print scanner. It is not Bloomberg, not FII/DII, and not a buy list.",
     )
     cards = [
-        ("1. Strong accumulation", "Delivery around 55%+, above its 20-day average, volume ≥ 1.3×, price not falling, RSI not overbought. Shortlist."),
-        ("2. Quiet accumulation", "Several sessions of above-average delivery without a blow-off. Watch for a dip toward the 20DMA."),
-        ("3. Dip absorption", "Price is down, delivery and volume are up. Could be buying the dip or panic. Starter size only."),
-        ("4. Overheated / speculative", "Do not chase. Delivery without volume, or volume without delivery, is a trap."),
-        ("5. Illiquid / thin tape", "Ignore 100% delivery on tiny turnover. That is not institutions."),
-        ("Disclosed flow", "Bulk/block client names, promoter SAST, MF-tagged prints, NSE announcements. Not official stock-wise FII/DII."),
+        (
+            "1. Mandate first",
+            "Investable = liquid turnover. Ignore 100% delivery on a thin book. T2T is not a delivery signal.",
+        ),
+        (
+            "2. Setup quality ≥ 70",
+            "Delivery ≥ 55%, vs 20D ≥ 1.15×, volume ≥ 1.3×, above 20DMA, RSI not overbought, 8+ sessions, no cache-gap 5D.",
+        ),
+        (
+            "3. Size from liquidity",
+            "Cap at 8% of one day's rupee turnover and 0.5% of mcap. If the cap is tiny, skip — you cannot get in or out.",
+        ),
+        (
+            "4. Kill the idea",
+            "Close below 20DMA, or delivery vs average < 0.95 for two sessions. Do not average down a broken tape.",
+        ),
+        (
+            "5. Disclosed flow is extra",
+            "Bulk/block client names and SAST are large-lot prints. They are not official stock-wise FII/DII.",
+        ),
+        (
+            "6. Backtest is one name, one rule",
+            "Next-bar delivery setup vs buy-and-hold. If it does not beat the stock with costs, do not pretend it will live.",
+        ),
     ]
     rows = [cards[0:3], cards[3:6]]
     for row in rows:
@@ -28,7 +46,4 @@ def page() -> None:
                     f'<div class="play"><h4>{title}</h4><p>{body}</p></div>',
                     unsafe_allow_html=True,
                 )
-    st.caption(
-        "Research pages run on cached NSE history, Yahoo snapshots, and the live option chain. "
-        "Portfolio / backtest / compliance are research tools — not a live mandate."
-    )
+    st.caption("Research pages that need filings (Piotroski, ESG, AMFI SIP) stay off the board until the inputs exist.")

@@ -249,8 +249,8 @@ def idea_card_html(row: pd.Series) -> str:
         f'<div class="sym">{html.escape(str(row.get("SYMBOL") or ""))}</div>'
         f'<div class="nm">{html.escape(str(row.get("NAME") or "")[:52])}</div>'
         '<div class="row">'
-        f'<div class="cell"><div class="lbl">Tape</div><div class="val">{html.escape(fmt_num(row.get("ACCUM_SCORE"), "{:.0f}"))}</div></div>'
-        f'<div class="cell"><div class="lbl">Heat</div><div class="val">{html.escape(fmt_num(row.get("HEAT"), "{:.0f}"))}</div></div>'
+        f'<div class="cell"><div class="lbl">Setup</div><div class="val">{html.escape(fmt_num(row.get("SETUP_QUALITY"), "{:.0f}"))}</div></div>'
+        f'<div class="cell"><div class="lbl">RS</div><div class="val">{html.escape(fmt_num(row.get("RS_20D_PCT"), "{:.0f}"))}</div></div>'
         f'<div class="cell"><div class="lbl">5D</div><div class="val {chg_cls}">{html.escape(chg_txt)}</div></div>'
         "</div></div>"
     )
